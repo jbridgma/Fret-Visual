@@ -1,0 +1,5 @@
+{
+  "name": "Fret Visual",
+  "description": "An interactive, high-fidelity guitar fretboard visualizer. Customize string counts, tunings, and scales to visualize notes across the neck.",
+  "requestFramePermissions": []
+}
