@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppState, NoteName, ThemeName, SavedChord, ZoomLevel, ScaleDefinition } from './types';
-import { CHORD_QUALITIES, SCALES, TUNINGS } from './constants';
+import { CHORD_QUALITIES, SCALES, TUNINGS, ALL_NOTES } from './constants';
 import { getScaleNotes, suggestChordQuality, getChordNotes, getNoteOnFret } from './utils/musicTheory';
 import { THEMES } from './themeConfig';
 import Controls from './components/Controls';
@@ -39,6 +39,11 @@ const App: React.FC = () => {
     return bgClass.replace('bg-', 'focus:ring-').replace('dark:bg-', 'dark:focus:ring-');
   };
 
+  // Utility to strip HTML/Script tags for sanitization
+  const sanitizeString = (str: string): string => {
+    return str.replace(/<[^>]*>?/gm, '').trim();
+  };
+
   // Sync dark mode class
   useEffect(() => {
     if (isDarkMode) {
@@ -53,11 +58,9 @@ const App: React.FC = () => {
     const currentPalette = isDarkMode ? palette.dark : palette.light;
     const favicon = document.getElementById('favicon') as HTMLLinkElement;
     if (favicon) {
-      // Escape # for SVG data URI
       const bgHex = currentPalette.scaleBgHex.replace('#', '%23');
       const textHex = currentPalette.scaleTextHex.replace('#', '%23');
-      
-      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='${bgHex}' /><text x='50%' y='58%' dominant-baseline='central' text-anchor='middle' font-family='sans-serif' font-weight='900' font-size='20' fill='${textHex}'>F</text></svg>`;
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='${bgHex}' /><text x='50%' y='52%' dominant-baseline='central' text-anchor='middle' font-family='sans-serif' font-weight='900' font-size='20' fill='${textHex}'>F</text></svg>`;
       favicon.href = `data:image/svg+xml,${svg}`;
     }
   }, [appState.theme, isDarkMode]);
@@ -107,28 +110,72 @@ const App: React.FC = () => {
 
   const handleImport = () => {
     try {
-      const parsed = JSON.parse(importText);
+      // Norming: Clean whitespace and normalize input
+      const normalizedInput = importText.trim();
+      if (!normalizedInput) throw new Error('Input is empty');
+
+      const parsed = JSON.parse(normalizedInput);
       
-      // Basic validation
+      // 1. Strict Type and Required Field Check
+      if (typeof parsed !== 'object' || parsed === null) throw new Error('Invalid configuration format');
+      
       const required = ['numStrings', 'tuning', 'rootNote', 'scale', 'theme'];
       for (const key of required) {
         if (!(key in parsed)) throw new Error(`Missing required field: ${key}`);
       }
 
+      // 2. Range and Content Validation
+      // Validate String Count
+      if (typeof parsed.numStrings !== 'number' || parsed.numStrings < 4 || parsed.numStrings > 9) {
+        throw new Error('Invalid number of strings (must be 4-9)');
+      }
+
+      // Validate Tuning
+      if (!Array.isArray(parsed.tuning) || parsed.tuning.length !== parsed.numStrings) {
+        throw new Error(`Tuning array must match string count (${parsed.numStrings})`);
+      }
+      parsed.tuning.forEach((note: any, idx: number) => {
+        if (!ALL_NOTES.includes(note)) throw new Error(`Invalid note "${note}" at string index ${idx}`);
+      });
+
+      // Validate Root Note
+      if (!ALL_NOTES.includes(parsed.rootNote)) {
+        throw new Error(`Invalid root note: ${parsed.rootNote}`);
+      }
+
+      // Validate Theme
+      if (!(parsed.theme in THEMES)) {
+        throw new Error(`Unknown theme: ${parsed.theme}`);
+      }
+
+      // 3. Sanitization of Saved Chords (XSS Prevention)
+      let validatedSavedChords: SavedChord[] = [];
+      if (Array.isArray(parsed.savedChords)) {
+        validatedSavedChords = parsed.savedChords.map((item: any) => {
+          if (!item.id || !item.chord || !item.label) return null;
+          return {
+            id: sanitizeString(String(item.id)),
+            label: sanitizeString(String(item.label)),
+            chord: item.chord // We could deeply validate the chord object here too if needed
+          };
+        }).filter((c): c is SavedChord => c !== null);
+      }
+
+      // 4. Update state with validated/sanitized data
       setAppState(prev => ({
         ...prev,
         numStrings: parsed.numStrings,
         tuning: parsed.tuning,
         rootNote: parsed.rootNote,
         scale: parsed.scale,
-        zoomLevel: parsed.zoomLevel || prev.zoomLevel,
-        savedChords: parsed.savedChords || [],
+        zoomLevel: (parsed.zoomLevel === 'fit' || parsed.zoomLevel === 'low' || parsed.zoomLevel === 'high') ? parsed.zoomLevel : prev.zoomLevel,
+        savedChords: validatedSavedChords,
         theme: parsed.theme,
-        selectedChord: null, // Clear active selection on import for stability
+        selectedChord: null, 
         isLocked: false
       }));
 
-      if ('isDarkMode' in parsed) {
+      if (typeof parsed.isDarkMode === 'boolean') {
         setIsDarkMode(parsed.isDarkMode);
       }
 
@@ -136,7 +183,8 @@ const App: React.FC = () => {
       setImportText('');
       setImportError(null);
     } catch (err: any) {
-      setImportError(err.message || 'Invalid JSON format');
+      // Provide clean feedback for parsing or validation failures
+      setImportError(err.name === 'SyntaxError' ? 'Invalid JSON format' : err.message);
     }
   };
 
