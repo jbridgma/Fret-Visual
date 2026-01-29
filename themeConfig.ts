@@ -16,6 +16,9 @@ export interface ColorSet {
   chordRootBg: string;
   chordRootText: string;
   chordRootRing: string;
+  // Hex values for dynamic favicon/meta tags
+  scaleBgHex: string;
+  scaleTextHex: string;
 }
 
 export interface ThemeDefinition {
@@ -34,7 +37,8 @@ export const THEMES: Record<ThemeName, ThemeDefinition> = {
       scaleBg: 'bg-teal-400', scaleText: 'text-black', scaleRing: 'ring-black/20',
       rootBg: 'bg-rose-400', rootText: 'text-black', rootRing: 'ring-black/20',
       chordToneBg: 'bg-amber-400', chordToneText: 'text-black', chordToneRing: 'ring-black/20',
-      chordRootBg: 'bg-orange-400', chordRootText: 'text-black', chordRootRing: 'ring-black/20'
+      chordRootBg: 'bg-orange-400', chordRootText: 'text-black', chordRootRing: 'ring-black/20',
+      scaleBgHex: '#2dd4bf', scaleTextHex: '#000000'
     },
     dark: {
       appBg: 'dark:bg-slate-950',
@@ -43,7 +47,8 @@ export const THEMES: Record<ThemeName, ThemeDefinition> = {
       scaleBg: 'dark:bg-teal-400', scaleText: 'dark:text-black', scaleRing: 'dark:ring-white/20',
       rootBg: 'dark:bg-rose-400', rootText: 'dark:text-black', rootRing: 'dark:ring-white/20',
       chordToneBg: 'dark:bg-amber-400', chordToneText: 'dark:text-black', chordToneRing: 'dark:ring-white/20',
-      chordRootBg: 'dark:bg-orange-400', chordRootText: 'dark:text-black', chordRootRing: 'dark:ring-white/20'
+      chordRootBg: 'dark:bg-orange-400', chordRootText: 'dark:text-black', chordRootRing: 'dark:ring-white/20',
+      scaleBgHex: '#2dd4bf', scaleTextHex: '#000000'
     }
   },
   'deep-jewel': {
@@ -55,7 +60,8 @@ export const THEMES: Record<ThemeName, ThemeDefinition> = {
       scaleBg: 'bg-blue-800', scaleText: 'text-white', scaleRing: 'ring-black/20',
       rootBg: 'bg-rose-800', rootText: 'text-white', rootRing: 'ring-black/20',
       chordToneBg: 'bg-amber-500', chordToneText: 'text-black', chordToneRing: 'ring-black/20',
-      chordRootBg: 'bg-amber-700', chordRootText: 'text-white', chordRootRing: 'ring-black/20'
+      chordRootBg: 'bg-amber-700', chordRootText: 'text-white', chordRootRing: 'ring-black/20',
+      scaleBgHex: '#1e40af', scaleTextHex: '#ffffff'
     },
     dark: {
       appBg: 'dark:bg-slate-950',
@@ -64,7 +70,8 @@ export const THEMES: Record<ThemeName, ThemeDefinition> = {
       scaleBg: 'dark:bg-blue-700', scaleText: 'dark:text-white', scaleRing: 'dark:ring-white/20',
       rootBg: 'dark:bg-rose-700', rootText: 'dark:text-white', rootRing: 'dark:ring-white/20',
       chordToneBg: 'dark:bg-amber-400', chordToneText: 'dark:text-black', chordToneRing: 'dark:ring-white/20',
-      chordRootBg: 'dark:bg-amber-600', chordRootText: 'dark:text-white', chordRootRing: 'dark:ring-white/20'
+      chordRootBg: 'dark:bg-amber-600', chordRootText: 'dark:text-white', chordRootRing: 'dark:ring-white/20',
+      scaleBgHex: '#1d4ed8', scaleTextHex: '#ffffff'
     }
   },
   'coffee': {
@@ -76,7 +83,8 @@ export const THEMES: Record<ThemeName, ThemeDefinition> = {
       scaleBg: 'bg-stone-300', scaleText: 'text-stone-900', scaleRing: 'ring-stone-400/30',
       rootBg: 'bg-amber-900', rootText: 'text-white', rootRing: 'ring-amber-950/20',
       chordToneBg: 'bg-amber-200', chordToneText: 'text-amber-950', chordToneRing: 'ring-amber-300',
-      chordRootBg: 'bg-amber-800', chordRootText: 'text-white', chordRootRing: 'ring-amber-900/40'
+      chordRootBg: 'bg-amber-800', chordRootText: 'text-white', chordRootRing: 'ring-amber-900/40',
+      scaleBgHex: '#d6d3d1', scaleTextHex: '#1c1917'
     },
     dark: {
       appBg: 'dark:bg-[#120c0a]',
@@ -85,7 +93,8 @@ export const THEMES: Record<ThemeName, ThemeDefinition> = {
       scaleBg: 'dark:bg-[#4e342e]', scaleText: 'dark:text-[#d7ccc8]', scaleRing: 'dark:ring-[#3e2723]/50',
       rootBg: 'dark:bg-[#d7ccc8]', rootText: 'dark:text-[#1c1410]', rootRing: 'dark:ring-[#f5ebe0]/30',
       chordToneBg: 'dark:bg-[#3e2723]', chordToneText: 'dark:text-[#d7ccc8]', chordToneRing: 'dark:ring-[#4e342e]',
-      chordRootBg: 'dark:bg-[#8d6e63]', chordRootText: 'dark:text-white', chordRootRing: 'dark:ring-[#795548]/50'
+      chordRootBg: 'dark:bg-[#8d6e63]', chordRootText: 'dark:text-white', chordRootRing: 'dark:ring-[#795548]/50',
+      scaleBgHex: '#4e342e', scaleTextHex: '#d7ccc8'
     }
   }
 };

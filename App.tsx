@@ -39,6 +39,7 @@ const App: React.FC = () => {
     return bgClass.replace('bg-', 'focus:ring-').replace('dark:bg-', 'dark:focus:ring-');
   };
 
+  // Sync dark mode class
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -46,6 +47,20 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // Sync dynamic favicon
+  useEffect(() => {
+    const currentPalette = isDarkMode ? palette.dark : palette.light;
+    const favicon = document.getElementById('favicon') as HTMLLinkElement;
+    if (favicon) {
+      // Escape # for SVG data URI
+      const bgHex = currentPalette.scaleBgHex.replace('#', '%23');
+      const textHex = currentPalette.scaleTextHex.replace('#', '%23');
+      
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='${bgHex}' /><text x='50%' y='58%' dominant-baseline='central' text-anchor='middle' font-family='sans-serif' font-weight='900' font-size='20' fill='${textHex}'>F</text></svg>`;
+      favicon.href = `data:image/svg+xml,${svg}`;
+    }
+  }, [appState.theme, isDarkMode]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
