@@ -34,6 +34,15 @@ export const CHORD_QUALITIES: ChordDefinition[] = [
 
 // Notes are defined Low String -> High String
 export const TUNINGS: Record<number, TuningDefinition[]> = {
+  4: [
+    { name: 'Standard (Bass)', notes: ['E', 'A', 'D', 'G'] },
+    { name: 'Drop D (Bass)', notes: ['D', 'A', 'D', 'G'] },
+    { name: 'Ukulele Standard', notes: ['G', 'C', 'E', 'A'] },
+  ],
+  5: [
+    { name: 'Standard (Bass)', notes: ['B', 'E', 'A', 'D', 'G'] },
+    { name: 'Drop A (Bass)', notes: ['A', 'E', 'A', 'D', 'G'] },
+  ],
   6: [
     { name: 'Standard E', notes: ['E', 'A', 'D', 'G', 'B', 'E'] },
     { name: 'Drop D', notes: ['D', 'A', 'D', 'G', 'B', 'E'] },
@@ -52,6 +61,10 @@ export const TUNINGS: Record<number, TuningDefinition[]> = {
   8: [
     { name: 'Standard F#', notes: ['F#', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
     { name: 'Drop E', notes: ['E', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
+  ],
+  9: [
+    { name: 'Standard C#', notes: ['C#', 'F#', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
+    { name: 'Drop B', notes: ['B', 'F#', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
   ]
 };
 
