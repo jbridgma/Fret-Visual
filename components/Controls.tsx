@@ -131,7 +131,7 @@ const Controls: React.FC<ControlsProps> = ({ state, setState }) => {
                     <div className="h-10 w-px bg-slate-700/50"></div>
 
                     <div className="flex flex-col space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Show Notes In</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Show Notes In</label>
                         <div className="relative">
                             <select 
                                 value={state.selectedChord.quality.name} 
@@ -149,7 +149,7 @@ const Controls: React.FC<ControlsProps> = ({ state, setState }) => {
                     </div>
 
                     <div className="flex flex-col space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Calculated Chord</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Calculated Chord</label>
                         <div className={`bg-slate-800 border ${palette.light.scaleBg.replace('bg-', 'border-')}/30 px-5 h-11 rounded-xl flex items-center gap-3 shadow-inner`}>
                              <div className={`w-2 h-2 rounded-full ${palette.light.scaleBg} animate-pulse shadow-[0_0_8px_rgba(20,184,166,0.8)]`}></div>
                              <span className={`${getTextColor(palette.light.scaleBg)} font-mono font-black whitespace-nowrap tracking-wider text-sm`}>
@@ -183,10 +183,10 @@ const Controls: React.FC<ControlsProps> = ({ state, setState }) => {
 
   return (
     <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-6 shadow-md z-50 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-center lg:gap-12">
+      <div className="max-w-7xl mx-auto flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-center lg:gap-12">
         <div className="flex flex-col md:flex-row md:justify-center gap-6">
             <div className="flex flex-col space-y-2">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Strings</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">Strings</label>
                 <div className="relative">
                     <select 
                         value={state.numStrings} 
@@ -203,7 +203,7 @@ const Controls: React.FC<ControlsProps> = ({ state, setState }) => {
                 </div>
             </div>
             <div className="flex flex-col space-y-2">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Tuning Preset</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">Tuning Preset</label>
                 <div className="relative">
                     <select 
                         value={isCustomTuning ? 'custom' : availableTunings.find(t => JSON.stringify(t.notes) === JSON.stringify(state.tuning))?.name} 
@@ -219,7 +219,7 @@ const Controls: React.FC<ControlsProps> = ({ state, setState }) => {
                 </div>
             </div>
             <div className="flex flex-col space-y-2">
-                 <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">String Setup</label>
+                 <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">String Setup</label>
                  <div className="flex space-x-1.5">
                      {state.tuning.map((note, idx) => (
                         <select 
@@ -236,7 +236,7 @@ const Controls: React.FC<ControlsProps> = ({ state, setState }) => {
         </div>
         <div className="flex flex-col md:flex-row md:justify-center gap-6">
              <div className="flex flex-col space-y-2">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Scale Root</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">Scale Root</label>
                 <div className="relative">
                     <select 
                         value={state.rootNote} 
@@ -251,7 +251,7 @@ const Controls: React.FC<ControlsProps> = ({ state, setState }) => {
                 </div>
             </div>
              <div className="flex flex-col space-y-2">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Mode / Scale</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">Mode / Scale</label>
                 <div className="relative">
                     <select 
                         value={state.scale.name} 
@@ -269,7 +269,7 @@ const Controls: React.FC<ControlsProps> = ({ state, setState }) => {
                 </div>
             </div>
              <div className="flex flex-col space-y-2">
-                 <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Viewport</label>
+                 <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">Viewport</label>
                  <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 border border-slate-300 dark:border-slate-700 h-11 items-center shadow-sm">
                     {(['fit', 'low', 'high'] as ZoomLevel[]).map((level) => (
                         <button 
