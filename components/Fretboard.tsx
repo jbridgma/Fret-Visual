@@ -1,8 +1,8 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { AppState, NoteName, ScaleDefinition, SelectedChord, ZoomLevel, ThemeName } from '../types';
+import { NoteName, ScaleDefinition, SelectedChord, ZoomLevel, ThemeName, ChordDisplayMode, FretboardMaterial, InlayStyle, InlayMaterial } from '../types';
 import { FRET_MARKERS, TOTAL_FRETS } from '../constants';
-import { getNoteOnFret, getScaleNotes, isNoteInScale, isRootNote, getPlayableChordCandidates, getIntervalType, IntervalType } from '../utils/musicTheory';
-import { THEMES, ColorSet } from '../themeConfig';
+import { getNoteOnFret, getScaleNotes, isNoteInScale, isRootNote, getPlayableChordCandidates, getIntervalType, IntervalType, getIntervalDegree } from '../utils/musicTheory';
+import { THEMES } from '../themeConfig';
 
 interface FretboardProps {
   tuning: NoteName[];
@@ -12,7 +12,15 @@ interface FretboardProps {
   zoomLevel: ZoomLevel;
   selectedChord: SelectedChord | null;
   theme: ThemeName;
+  isLeftHanded: boolean;
+  chordDisplayMode: ChordDisplayMode;
+  focusedNote: NoteName | null;
   onNoteClick: (note: NoteName, stringIndex: number, fretIndex: number) => void;
+  // Neck Customization
+  fretboardMaterial: FretboardMaterial;
+  inlaysEnabled: boolean;
+  inlayStyle: InlayStyle;
+  inlayMaterial: InlayMaterial;
 }
 
 const Fretboard: React.FC<FretboardProps> = ({ 
@@ -23,7 +31,14 @@ const Fretboard: React.FC<FretboardProps> = ({
   zoomLevel,
   selectedChord,
   theme,
-  onNoteClick
+  isLeftHanded,
+  chordDisplayMode,
+  focusedNote,
+  onNoteClick,
+  fretboardMaterial,
+  inlaysEnabled,
+  inlayStyle,
+  inlayMaterial
 }) => {
   const palette = THEMES[theme];
   const scaleNotes = useMemo(() => getScaleNotes(rootNote, scale), [rootNote, scale]);
@@ -55,61 +70,208 @@ const Fretboard: React.FC<FretboardProps> = ({
 
   useEffect(() => {
       if (scrollRef.current) {
+          const { scrollWidth, clientWidth } = scrollRef.current;
           if (zoomLevel === 'fit' || zoomLevel === 'low') {
-              scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+              scrollRef.current.scrollTo({ 
+                left: isLeftHanded ? scrollWidth : 0, 
+                behavior: 'smooth' 
+              });
           } else if (zoomLevel === 'high') {
-              const scrollTarget = (scrollRef.current.scrollWidth * 0.45); 
-              scrollRef.current.scrollTo({ left: scrollTarget, behavior: 'smooth' });
+              const target = isLeftHanded ? 0 : scrollWidth * 0.45;
+              scrollRef.current.scrollTo({ left: target, behavior: 'smooth' });
           }
       }
-  }, [zoomLevel]);
+  }, [zoomLevel, isLeftHanded]);
 
   const fretMinWidth = zoomLevel === 'fit' ? 'min-w-[40px]' : 'min-w-[90px]';
+  const horizontalOrderClass = isLeftHanded ? 'flex-row-reverse' : 'flex-row';
+
+  const getFretboardBgColor = () => {
+      switch (fretboardMaterial) {
+          case 'rosewood': return '#8c6b4f'; 
+          case 'maple': return '#f5e1b5';
+          case 'ebony': return '#352319'; 
+          default: return ''; 
+      }
+  };
+
+  const getInlayBaseColor = () => {
+      switch (inlayMaterial) {
+          case 'abalone': return '#7fbfaf';
+          case 'neon': return '#00f3ff';
+          case 'pearl': 
+          default: return '#ffffff';
+      }
+  };
+
+  const getInlayFilter = () => {
+      // Glow removed from neon material as requested
+      if (inlayMaterial === 'abalone') return 'url(#abaloneFilter)';
+      return undefined; 
+  };
+
+  const renderInlay = (fretNum: number) => {
+      if (!inlaysEnabled || !FRET_MARKERS.includes(fretNum)) return null;
+      const isDouble = fretNum === 12 || fretNum === 24;
+      const baseColor = getInlayBaseColor();
+      const filter = getInlayFilter();
+
+      const inlayContent = () => {
+          switch (inlayStyle) {
+              case 'blocks':
+                  return (
+                      <div className="w-full h-full flex items-center justify-center p-2">
+                          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                              <path d="M15,10 L85,25 L85,75 L15,90 Z" fill={baseColor} filter={filter} style={{ opacity: 1 }} />
+                          </svg>
+                      </div>
+                  );
+              case 'diamond':
+                  return (
+                      <div className="w-full h-full flex items-center justify-center">
+                          {/* Diamond significantly enlarged to span approx 4 strings (270px height) while remaining slender (32px width) */}
+                          <svg width="32" height="270" viewBox="0 0 32 270">
+                               <polygon points="16,0 32,135 16,270 0,135" fill={baseColor} filter={filter} style={{ opacity: 1 }} />
+                          </svg>
+                      </div>
+                  );
+              case 'dots':
+              default:
+                  return (
+                      <div className={`flex flex-col gap-10 items-center justify-center h-full`}>
+                          <div style={{ backgroundColor: baseColor, filter: filter, width: '24px', height: '24px', borderRadius: '50%', opacity: 1, border: '1px solid rgba(0,0,0,0.05)' }}></div>
+                          {isDouble && <div style={{ backgroundColor: baseColor, filter: filter, width: '24px', height: '24px', borderRadius: '50%', opacity: 1, border: '1px solid rgba(0,0,0,0.05)' }}></div>}
+                      </div>
+                  );
+          }
+      };
+
+      return (
+          <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden flex items-center justify-center">
+              {inlayContent()}
+          </div>
+      );
+  };
 
   return (
     <div 
         ref={scrollRef}
-        className={`w-full overflow-x-auto fret-scroll ${palette.light.fretboardBg} ${palette.dark.fretboardBg} border-t-4 border-b-4 border-slate-200 dark:border-slate-800 shadow-2xl relative select-none transition-colors duration-300`}
+        className={`w-full overflow-x-auto fret-scroll border-t-4 border-b-4 border-slate-200 dark:border-slate-800 shadow-2xl relative select-none transition-colors duration-300`}
+        style={{ backgroundColor: getFretboardBgColor() }}
     >
-      <div 
-        className="relative py-12" 
-        style={{ width: 'max-content' }}
-      >
-        <div className="absolute inset-0 flex pointer-events-none">
-            <div className={`flex-shrink-0 w-16 ${palette.light.nutBg} ${palette.dark.nutBg} border-r-8 border-amber-900/10 dark:border-amber-100/20 relative z-10 flex flex-col justify-end pb-2 items-center transition-colors`}>
+      {/* SVG Filters definitions */}
+      <svg style={{ height: 0, width: 0, position: 'absolute' }}>
+        <defs>
+            {/* Harmonized Wood Grain Filters */}
+            <filter id="woodGrain">
+                <feTurbulence type="fractalNoise" baseFrequency="0.02 0.3" numOctaves="4" result="noise" />
+                <feColorMatrix type="matrix" values="0.4 0 0 0 0.2 0.2 0 0 0 0.1 0.1 0 0 0 0.05 0 0 0 1 0" />
+                <feBlend mode="multiply" in="SourceGraphic" />
+            </filter>
+            <filter id="woodGrainLight">
+                <feTurbulence type="fractalNoise" baseFrequency="0.02 0.3" numOctaves="4" result="noise" />
+                <feColorMatrix type="matrix" values="0.6 0 0 0 0.2 0.4 0 0 0 0.1 0.2 0 0 0 0.05 0 0 0 0.6 0" />
+                <feBlend mode="multiply" in="SourceGraphic" />
+            </filter>
+            <filter id="woodGrainEbony">
+                <feTurbulence type="fractalNoise" baseFrequency="0.02 0.3" numOctaves="4" result="noise" />
+                <feColorMatrix type="matrix" values="0.2 0 0 0 0 0.2 0 0 0 0 0.2 0 0 0 0 0 0 0 0.8 0" />
+                <feBlend mode="multiply" in="SourceGraphic" />
+            </filter>
+
+            {/* Inlay Texture Filters */}
+            <filter id="abaloneFilter" x="-20%" y="-20%" width="140%" height="140%">
+                {/* Opaque Ground Base */}
+                <feFlood flood-color="#4a7a7a" result="flood" />
+                <feComposite in="flood" in2="SourceGraphic" operator="in" result="opaqueBase" />
+                
+                {/* Noise for Texture */}
+                <feTurbulence type="fractalNoise" baseFrequency="0.12" numOctaves="4" result="noise" />
+                
+                {/* Iridescent Color Mapping */}
+                <feColorMatrix in="noise" type="matrix" values="
+                    0 2 1 0 -0.2
+                    1 0 2 0 -0.1
+                    0 1 1 0 0.1
+                    0 0 0 0 1" result="iridescence" />
+                
+                {/* Combine iridescence with opaque base */}
+                <feBlend mode="overlay" in="iridescence" in2="opaqueBase" result="texturedBase" />
+
+                {/* Specular Shimmer */}
+                <feSpecularLighting surfaceScale="2" specularConstant="1.2" specularExponent="35" lighting-color="#ccffff" in="noise">
+                    <fePointLight x="-100" y="-100" z="150" />
+                </feSpecularLighting>
+                <feComposite in2="SourceGraphic" operator="in" result="sheen" />
+                
+                {/* Final Composite with Alpha Correction to fix "rectangle box" issue */}
+                <feBlend mode="screen" in="sheen" in2="texturedBase" result="final" />
+                <feComposite in="final" in2="SourceGraphic" operator="in" />
+            </filter>
+        </defs>
+      </svg>
+
+      <div className="relative py-12" style={{ width: 'max-content' }}>
+        
+        {/* Isolated Texture Layer (Restrained to Fretboard area) */}
+        {fretboardMaterial !== 'vector' && (
+            <div 
+                className="absolute inset-0 pointer-events-none z-0" 
+                style={{ 
+                    backgroundColor: getFretboardBgColor(),
+                    filter: fretboardMaterial === 'rosewood' ? 'url(#woodGrain)' : (fretboardMaterial === 'maple' ? 'url(#woodGrainLight)' : 'url(#woodGrainEbony)'),
+                    backgroundImage: 'linear-gradient(90deg, transparent 95%, rgba(0,0,0,0.1) 100%), radial-gradient(circle at 50% 50%, rgba(255,255,255,0.02), transparent)'
+                }}
+            />
+        )}
+
+        {/* Vector Background (Fallback/Default) */}
+        {fretboardMaterial === 'vector' && (
+            <div className={`absolute inset-0 z-0 ${palette.light.fretboardBg} ${palette.dark.fretboardBg}`} />
+        )}
+
+        <div className={`absolute inset-0 flex pointer-events-none z-10 ${horizontalOrderClass}`}>
+            <div className={`flex-shrink-0 w-16 ${palette.light.nutBg} ${palette.dark.nutBg} ${isLeftHanded ? 'border-l-8' : 'border-r-8'} border-amber-900/10 dark:border-amber-100/20 relative z-20 flex flex-col justify-end pb-2 items-center transition-colors`}>
                  <span className="text-xs text-slate-400 dark:text-slate-500 font-bold tracking-widest uppercase mb-2">Nut</span>
             </div>
             {Array.from({ length: TOTAL_FRETS }).map((_, i) => {
                 const fretNum = i + 1;
                 const isMarked = FRET_MARKERS.includes(fretNum);
+                const fretBorderClass = fretboardMaterial === 'maple' ? 'border-amber-900/25' : 'border-slate-300 dark:border-slate-400/30';
+
                 return (
                     <div 
                         key={fretNum} 
-                        className={`flex-1 border-r-2 border-slate-300 dark:border-slate-400/30 relative flex flex-col justify-end items-center pb-2 ${fretMinWidth} ${isMarked ? 'bg-slate-100/50 dark:bg-slate-800/40' : ''}`}
+                        className={`flex-1 ${isLeftHanded ? 'border-l-2' : 'border-r-2'} ${fretBorderClass} relative flex flex-col justify-end items-center pb-2 ${fretMinWidth} ${isMarked && fretboardMaterial === 'vector' ? 'bg-slate-100/50 dark:bg-slate-800/40' : ''}`}
                     >
-                        <span className="text-slate-400 dark:text-slate-500 font-mono text-xs mt-2">{fretNum}</span>
+                        {renderInlay(fretNum)}
+                        <span className="text-slate-400 dark:text-slate-500 font-mono text-xs mt-2 relative z-20">{fretNum}</span>
                     </div>
                 );
             })}
         </div>
 
-        <div className="relative z-20 flex flex-col justify-between h-[400px]">
+        <div className="relative z-30 flex flex-col justify-between h-[400px]">
           {reversedTuning.map((stringRoot, visualStringIndex) => {
              const originalStringIndex = tuning.length - 1 - visualStringIndex;
              const isStringPinned = pinnedStrings.has(originalStringIndex);
              const isStringMuted = mutedStrings.has(originalStringIndex);
+             const stringColor = fretboardMaterial === 'maple' ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.25)';
 
              return (
-              <div key={visualStringIndex} className="relative w-full flex items-center">
-                <div className={`absolute w-full h-[1px] bg-slate-400/30 pointer-events-none`}></div>
-                <div className="w-16 flex-shrink-0 flex justify-center items-center relative z-30">
+              <div key={visualStringIndex} className={`relative w-full flex items-center ${horizontalOrderClass}`}>
+                <div className={`absolute w-full h-[1px] pointer-events-none`} style={{ backgroundColor: stringColor }}></div>
+                <div className="w-16 flex-shrink-0 flex justify-center items-center relative z-40">
                      <Note 
                         note={stringRoot} 
                         rootNote={rootNote}
                         theme={theme}
+                        displayMode={chordDisplayMode}
                         interval={selectedChord ? getIntervalType(selectedChord.rootNote, stringRoot) : undefined} 
+                        chordRoot={selectedChord?.rootNote}
                         inScale={isNoteInScale(stringRoot, scaleNotes)}
                         showAll={showAllNotes}
+                        focusedNote={focusedNote}
                         chordState={selectedChord ? {
                             isPinned: pinnedNotes.has(`${originalStringIndex}-0`),
                             isMuted: isStringMuted,
@@ -123,20 +285,23 @@ const Fretboard: React.FC<FretboardProps> = ({
                         onClick={() => onNoteClick(stringRoot, originalStringIndex, 0)}
                      />
                 </div>
-                <div className="flex-1 flex">
+                <div className={`flex-1 flex ${horizontalOrderClass}`}>
                     {Array.from({ length: TOTAL_FRETS }).map((_, fretIndex) => {
                         const fretNum = fretIndex + 1;
                         const note = getNoteOnFret(stringRoot, fretNum);
                         const posId = `${originalStringIndex}-${fretNum}`;
                         return (
-                            <div key={fretNum} className={`flex-1 flex justify-center items-center relative z-30 ${fretMinWidth}`}>
+                            <div key={fretNum} className={`flex-1 flex justify-center items-center relative z-40 ${fretMinWidth}`}>
                                 <Note 
                                     note={note} 
                                     rootNote={rootNote}
                                     theme={theme}
+                                    displayMode={chordDisplayMode}
                                     interval={selectedChord ? getIntervalType(selectedChord.rootNote, note) : undefined}
+                                    chordRoot={selectedChord?.rootNote}
                                     inScale={isNoteInScale(note, scaleNotes)} 
                                     showAll={showAllNotes}
+                                    focusedNote={focusedNote}
                                     chordState={selectedChord ? {
                                         isPinned: pinnedNotes.has(posId),
                                         isMuted: false, 
@@ -166,9 +331,12 @@ interface NoteProps {
     note: NoteName; 
     rootNote: NoteName; 
     theme: ThemeName;
+    displayMode: ChordDisplayMode;
     interval?: IntervalType;
+    chordRoot?: NoteName;
     inScale: boolean; 
     showAll: boolean;
+    focusedNote: NoteName | null;
     chordState?: {
         isPinned: boolean;
         isMuted: boolean;
@@ -180,13 +348,24 @@ interface NoteProps {
     onClick: () => void;
 }
 
-const Note: React.FC<NoteProps> = ({ note, rootNote, theme, interval, inScale, showAll, chordState, onClick }) => {
+const Note: React.FC<NoteProps> = ({ note, rootNote, theme, displayMode, interval, chordRoot, inScale, showAll, focusedNote, chordState, onClick }) => {
     const palette = THEMES[theme];
     let containerClass = "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-sm transition-all duration-300 transform cursor-pointer select-none ";
 
+    const isCurrentlyFocused = focusedNote === note;
+    const someNoteIsFocused = focusedNote !== null;
+
+    const getDisplayText = () => {
+        if (chordState && chordState.isMuted) return '✕';
+        if (chordState && displayMode === 'interval' && chordRoot) {
+            return getIntervalDegree(chordRoot, note);
+        }
+        return note;
+    };
+
     if (chordState) {
         if (chordState.isMuted) {
-            containerClass += " bg-rose-500/10 text-rose-600 border border-rose-500/30 scale-100 z-40 ring-2 ring-rose-500 ring-offset-1 ring-offset-white dark:ring-offset-slate-900";
+            containerClass += " bg-rose-500/10 text-rose-600 border border-rose-500/30 scale-100 z-50 ring-2 ring-rose-500 ring-offset-1 ring-offset-white dark:ring-offset-slate-900";
             return <div className={containerClass} onClick={onClick}>✕</div>;
         }
 
@@ -194,12 +373,11 @@ const Note: React.FC<NoteProps> = ({ note, rootNote, theme, interval, inScale, s
             const isChordRoot = interval === 'root';
             
             if (chordState.isTrueRoot) {
-                containerClass += " scale-150 z-50 ";
+                containerClass += " scale-150 z-[60] ";
             } else {
-                containerClass += chordState.isPinned ? " scale-110 z-45 " : " scale-100 z-40 ";
+                containerClass += chordState.isPinned ? " scale-110 z-50 " : " scale-100 z-40 ";
             }
 
-            // Background & Text Colors based on Interval
             if (isChordRoot) {
                 containerClass += ` ${palette.light.chordRootBg} ${palette.dark.chordRootBg} ${palette.light.chordRootText} ${palette.dark.chordRootText} shadow-lg `;
             } else {
@@ -212,7 +390,6 @@ const Note: React.FC<NoteProps> = ({ note, rootNote, theme, interval, inScale, s
 
             containerClass += " ring-offset-1 ring-offset-white dark:ring-offset-slate-900 ";
             
-            // Fixed Interval Ring Color Coding
             switch(interval) {
                 case 'root': 
                     containerClass += ` ring-2 ${palette.light.chordRootRing} ${palette.dark.chordRootRing} `; 
@@ -253,9 +430,16 @@ const Note: React.FC<NoteProps> = ({ note, rootNote, theme, interval, inScale, s
         }
     }
 
+    // Apply focus dimming at the end
+    if (someNoteIsFocused && !isCurrentlyFocused) {
+        containerClass += " opacity-20 grayscale scale-90 ";
+    } else if (someNoteIsFocused && isCurrentlyFocused) {
+        containerClass += " ring-4 ring-yellow-400 dark:ring-yellow-500 ring-offset-4 ring-offset-white dark:ring-offset-slate-950 scale-125 z-[70] shadow-2xl ";
+    }
+
     return (
         <div className={containerClass} onClick={onClick}>
-            {note}
+            {getDisplayText()}
         </div>
     );
 };

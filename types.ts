@@ -18,6 +18,11 @@ export interface TuningDefinition {
 
 export type ZoomLevel = 'fit' | 'low' | 'high';
 export type ThemeName = 'deep-jewel' | 'coffee' | 'pure-vibrance';
+export type ChordDisplayMode = 'note' | 'interval';
+
+export type FretboardMaterial = 'vector' | 'rosewood' | 'maple' | 'ebony';
+export type InlayStyle = 'dots' | 'blocks' | 'diamond';
+export type InlayMaterial = 'pearl' | 'abalone' | 'neon';
 
 export interface SelectedChord {
   rootNote: NoteName;
@@ -45,4 +50,13 @@ export interface AppState {
   savedChords: SavedChord[];
   isLocked: boolean;
   theme: ThemeName;
+  isLeftHanded: boolean;
+  chordDisplayMode: ChordDisplayMode;
+  enableNotePreview: boolean;
+  focusedNote: NoteName | null;
+  // Neck Customization
+  fretboardMaterial: FretboardMaterial;
+  inlaysEnabled: boolean;
+  inlayStyle: InlayStyle;
+  inlayMaterial: InlayMaterial;
 }

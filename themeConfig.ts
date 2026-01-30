@@ -80,11 +80,11 @@ export const THEMES: Record<ThemeName, ThemeDefinition> = {
       appBg: 'bg-amber-50',
       fretboardBg: 'bg-white',
       nutBg: 'bg-amber-100/50',
-      scaleBg: 'bg-stone-300', scaleText: 'text-stone-900', scaleRing: 'ring-stone-400/30',
-      rootBg: 'bg-amber-900', rootText: 'text-white', rootRing: 'ring-amber-950/20',
+      scaleBg: 'bg-[#795548]', scaleText: 'text-[#FFFBEB]', scaleRing: 'ring-stone-400/30',
+      rootBg: 'bg-[#3E2723]', rootText: 'text-white', rootRing: 'ring-amber-950/20',
       chordToneBg: 'bg-amber-200', chordToneText: 'text-amber-950', chordToneRing: 'ring-amber-300',
       chordRootBg: 'bg-amber-800', chordRootText: 'text-white', chordRootRing: 'ring-amber-900/40',
-      scaleBgHex: '#d6d3d1', scaleTextHex: '#1c1917'
+      scaleBgHex: '#795548', scaleTextHex: '#FFFBEB'
     },
     dark: {
       appBg: 'dark:bg-[#120c0a]',

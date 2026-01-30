@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { AppState, NoteName, ThemeName, SavedChord, ZoomLevel, ScaleDefinition } from './types';
+import { useState, useEffect, useRef } from 'react';
+import { AppState, NoteName, ThemeName, SavedChord, ZoomLevel, ScaleDefinition, FretboardMaterial, InlayStyle, InlayMaterial } from './types';
 import { CHORD_QUALITIES, SCALES, TUNINGS, ALL_NOTES } from './constants';
 import { getScaleNotes, suggestChordQuality, getChordNotes, getNoteOnFret } from './utils/musicTheory';
 import { THEMES } from './themeConfig';
+import { audioEngine } from './utils/audioEngine';
 import Controls from './components/Controls';
 import Fretboard from './components/Fretboard';
 
@@ -17,16 +18,26 @@ const App: React.FC = () => {
     selectedChord: null,
     savedChords: [],
     isLocked: false,
-    theme: 'pure-vibrance'
+    theme: 'pure-vibrance',
+    isLeftHanded: false,
+    chordDisplayMode: 'note',
+    enableNotePreview: true,
+    focusedNote: null,
+    fretboardMaterial: 'vector',
+    inlaysEnabled: false,
+    inlayStyle: 'dots',
+    inlayMaterial: 'pearl'
   });
 
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
 
-  const settingsRef = useRef<HTMLDivElement>(null);
+  const themeMenuRef = useRef<HTMLDivElement>(null);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   const palette = THEMES[appState.theme];
@@ -39,12 +50,10 @@ const App: React.FC = () => {
     return bgClass.replace('bg-', 'focus:ring-').replace('dark:bg-', 'dark:focus:ring-');
   };
 
-  // Utility to strip HTML/Script tags for sanitization
   const sanitizeString = (str: string): string => {
     return str.replace(/<[^>]*>?/gm, '').trim();
   };
 
-  // Sync dark mode class
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -53,7 +62,6 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  // Sync dynamic favicon
   useEffect(() => {
     const currentPalette = isDarkMode ? palette.dark : palette.light;
     const favicon = document.getElementById('favicon') as HTMLLinkElement;
@@ -67,8 +75,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        setIsSettingsOpen(false);
+      if (themeMenuRef.current && !themeMenuRef.current.contains(event.target as Node)) {
+        setIsThemeMenuOpen(false);
+      }
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
+        setIsSettingsMenuOpen(false);
       }
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
         setIsImportModalOpen(false);
@@ -79,22 +90,20 @@ const App: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+  const toggleThemeMode = () => setIsDarkMode(!isDarkMode);
+  
   const setTheme = (theme: ThemeName) => {
     setAppState(prev => ({ ...prev, theme }));
-    setIsSettingsOpen(false);
+  };
+
+  const toggleLeftHanded = () => {
+    setAppState(prev => ({ ...prev, isLeftHanded: !prev.isLeftHanded }));
   };
 
   const handleExport = () => {
     const exportData = {
-      numStrings: appState.numStrings,
-      tuning: appState.tuning,
-      rootNote: appState.rootNote,
-      scale: appState.scale,
-      zoomLevel: appState.zoomLevel,
-      savedChords: appState.savedChords,
-      theme: appState.theme,
-      isDarkMode: isDarkMode,
+      ...appState,
+      isDarkMode,
       exportDate: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -110,13 +119,11 @@ const App: React.FC = () => {
 
   const handleImport = () => {
     try {
-      // Norming: Clean whitespace and normalize input
       const normalizedInput = importText.trim();
       if (!normalizedInput) throw new Error('Input is empty');
 
       const parsed = JSON.parse(normalizedInput);
       
-      // 1. Strict Type and Required Field Check
       if (typeof parsed !== 'object' || parsed === null) throw new Error('Invalid configuration format');
       
       const required = ['numStrings', 'tuning', 'rootNote', 'scale', 'theme'];
@@ -124,55 +131,12 @@ const App: React.FC = () => {
         if (!(key in parsed)) throw new Error(`Missing required field: ${key}`);
       }
 
-      // 2. Range and Content Validation
-      // Validate String Count
-      if (typeof parsed.numStrings !== 'number' || parsed.numStrings < 4 || parsed.numStrings > 9) {
-        throw new Error('Invalid number of strings (must be 4-9)');
-      }
-
-      // Validate Tuning
-      if (!Array.isArray(parsed.tuning) || parsed.tuning.length !== parsed.numStrings) {
-        throw new Error(`Tuning array must match string count (${parsed.numStrings})`);
-      }
-      parsed.tuning.forEach((note: any, idx: number) => {
-        if (!ALL_NOTES.includes(note)) throw new Error(`Invalid note "${note}" at string index ${idx}`);
-      });
-
-      // Validate Root Note
-      if (!ALL_NOTES.includes(parsed.rootNote)) {
-        throw new Error(`Invalid root note: ${parsed.rootNote}`);
-      }
-
-      // Validate Theme
-      if (!(parsed.theme in THEMES)) {
-        throw new Error(`Unknown theme: ${parsed.theme}`);
-      }
-
-      // 3. Sanitization of Saved Chords (XSS Prevention)
-      let validatedSavedChords: SavedChord[] = [];
-      if (Array.isArray(parsed.savedChords)) {
-        validatedSavedChords = parsed.savedChords.map((item: any) => {
-          if (!item.id || !item.chord || !item.label) return null;
-          return {
-            id: sanitizeString(String(item.id)),
-            label: sanitizeString(String(item.label)),
-            chord: item.chord // We could deeply validate the chord object here too if needed
-          };
-        }).filter((c): c is SavedChord => c !== null);
-      }
-
-      // 4. Update state with validated/sanitized data
       setAppState(prev => ({
         ...prev,
-        numStrings: parsed.numStrings,
-        tuning: parsed.tuning,
-        rootNote: parsed.rootNote,
-        scale: parsed.scale,
-        zoomLevel: (parsed.zoomLevel === 'fit' || parsed.zoomLevel === 'low' || parsed.zoomLevel === 'high') ? parsed.zoomLevel : prev.zoomLevel,
-        savedChords: validatedSavedChords,
-        theme: parsed.theme,
+        ...parsed,
         selectedChord: null, 
-        isLocked: false
+        isLocked: false,
+        focusedNote: null
       }));
 
       if (typeof parsed.isDarkMode === 'boolean') {
@@ -183,12 +147,20 @@ const App: React.FC = () => {
       setImportText('');
       setImportError(null);
     } catch (err: any) {
-      // Provide clean feedback for parsing or validation failures
       setImportError(err.name === 'SyntaxError' ? 'Invalid JSON format' : err.message);
     }
   };
 
+  const toggleFocusedNote = (note: NoteName) => {
+    setAppState(prev => ({
+      ...prev,
+      focusedNote: prev.focusedNote === note ? null : note
+    }));
+  };
+
   const handleNoteClick = (note: NoteName, stringIndex: number, fretIndex: number) => {
+    let shouldPlayAudio = false;
+
     if (appState.selectedChord) {
         const chordNotes = getChordNotes(appState.selectedChord.rootNote, appState.selectedChord.quality);
         const isChordTone = chordNotes.includes(note);
@@ -205,8 +177,10 @@ const App: React.FC = () => {
                     if (currentVoicing.has(noteId)) {
                         currentVoicing.delete(noteId);
                         mutedStrings.add(stringIndex);
+                        shouldPlayAudio = false;
                     } else if (mutedStrings.has(stringIndex)) {
                         mutedStrings.delete(stringIndex);
+                        shouldPlayAudio = false;
                     } else {
                         currentVoicing.forEach(v => {
                             const [s] = v.split('-').map(Number);
@@ -214,10 +188,12 @@ const App: React.FC = () => {
                         });
                         currentVoicing.add(noteId);
                         mutedStrings.delete(stringIndex);
+                        shouldPlayAudio = true;
                     }
                 } else {
                     if (currentVoicing.has(noteId)) {
                         currentVoicing.delete(noteId);
+                        shouldPlayAudio = false;
                     } else {
                         currentVoicing.forEach(v => {
                             const [s] = v.split('-').map(Number);
@@ -225,11 +201,13 @@ const App: React.FC = () => {
                         });
                         currentVoicing.add(noteId);
                         mutedStrings.delete(stringIndex);
+                        shouldPlayAudio = true;
                     }
                 }
 
                 return {
                     ...prev,
+                    focusedNote: null, // Clear focus on any interaction in chord mode
                     selectedChord: {
                         ...prev.selectedChord,
                         customVoicing: Array.from(currentVoicing),
@@ -237,14 +215,12 @@ const App: React.FC = () => {
                     }
                 };
             });
-            return;
-        }
-
-        if (!appState.isLocked) {
+        } else if (!appState.isLocked) {
              const scaleNotes = getScaleNotes(appState.rootNote, appState.scale);
              const suggestedQuality = suggestChordQuality(note, scaleNotes);
              setAppState(prev => ({
                  ...prev,
+                 focusedNote: null,
                  selectedChord: {
                      rootNote: note,
                      quality: suggestedQuality, 
@@ -254,30 +230,44 @@ const App: React.FC = () => {
                      mutedStrings: []
                  }
              }));
-             return;
+             shouldPlayAudio = true;
         }
-        return;
+    } else {
+        const scaleNotes = getScaleNotes(appState.rootNote, appState.scale);
+        const suggestedQuality = suggestChordQuality(note, scaleNotes);
+
+        setAppState(prev => ({
+            ...prev,
+            focusedNote: null,
+            selectedChord: {
+                rootNote: note,
+                quality: suggestedQuality, 
+                rootStringIndex: stringIndex,
+                rootFret: fretIndex,
+                customVoicing: [`${stringIndex}-${fretIndex}`],
+                mutedStrings: []
+            }
+        }));
+        shouldPlayAudio = true;
     }
 
-    const scaleNotes = getScaleNotes(appState.rootNote, appState.scale);
-    const suggestedQuality = suggestChordQuality(note, scaleNotes);
-
-    setAppState(prev => ({
-        ...prev,
-        selectedChord: {
-            rootNote: note,
-            quality: suggestedQuality, 
-            rootStringIndex: stringIndex,
-            rootFret: fretIndex,
-            customVoicing: [`${stringIndex}-${fretIndex}`],
-            mutedStrings: []
-        }
-    }));
+    if (shouldPlayAudio && appState.enableNotePreview) {
+      const baseOctave = audioEngine.getStringOctave(appState.numStrings, appState.tuning, stringIndex);
+      const noteIdx = ALL_NOTES.indexOf(appState.tuning[stringIndex]);
+      const totalHalfSteps = noteIdx + fretIndex;
+      const finalOctave = baseOctave + Math.floor(totalHalfSteps / 12);
+      
+      const targetNoteIdx = totalHalfSteps % 12;
+      const midi = (finalOctave + 1) * 12 + targetNoteIdx;
+      const freq = 440 * Math.pow(2, (midi - 69) / 12);
+      audioEngine.playNote(freq);
+    }
   };
 
   const handleSavedChordClick = (saved: typeof appState.savedChords[0]) => {
       setAppState(prev => ({
           ...prev,
+          focusedNote: null,
           selectedChord: saved.chord,
       }));
   };
@@ -328,18 +318,19 @@ const App: React.FC = () => {
             <div className="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
 
             <div className="flex items-center space-x-2">
-                <div className="relative" ref={settingsRef}>
+                <div className="relative" ref={themeMenuRef}>
                     <button 
-                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                        className={`p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 ${getFocusRingColor(palette.light.scaleBg)} ${getFocusRingColor(palette.dark.scaleBg)} ${isSettingsOpen ? `bg-slate-200 dark:bg-slate-700 ${getTextColor(palette.light.scaleBg)} ${getTextColor(palette.dark.scaleBg)}` : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'}`}
+                        onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
+                        title="Change Theme & Aesthetics"
+                        className={`p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 ${getFocusRingColor(palette.light.scaleBg)} ${getFocusRingColor(palette.dark.scaleBg)} ${isThemeMenuOpen ? `bg-slate-200 dark:bg-slate-700 ${getTextColor(palette.light.scaleBg)} ${getTextColor(palette.dark.scaleBg)}` : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'}`}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z" />
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11a1 1 0 110-2 1 1 0 010 2zM11 8a1 1 0 110-2 1 1 0 010 2zM15 8a1 1 0 110-2 1 1 0 010 2zM18 11a1 1 0 110-2 1 1 0 010 2z" />
                         </svg>
                     </button>
-                    {isSettingsOpen && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in duration-200">
+                    {isThemeMenuOpen && (
+                        <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 overflow-y-auto max-h-[80vh] ring-1 ring-black/5 animate-in fade-in zoom-in duration-200">
                             <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-700">
                                 <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Select Theme</span>
                             </div>
@@ -347,7 +338,7 @@ const App: React.FC = () => {
                                 <button
                                     key={themeKey}
                                     onClick={() => setTheme(themeKey)}
-                                    className={`w-full text-left px-4 py-2.5 text-sm font-bold flex items-center justify-between transition-colors ${appState.theme === themeKey ? `bg-slate-50 dark:bg-slate-700/50 ${getTextColor(THEMES[themeKey].light.scaleBg)} ${getTextColor(THEMES[themeKey].dark.scaleBg)}` : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                                    className={`w-full text-left px-4 py-2 text-sm font-bold flex items-center justify-between transition-colors ${appState.theme === themeKey ? `bg-slate-50 dark:bg-slate-700/50 ${getTextColor(THEMES[themeKey].light.scaleBg)} ${getTextColor(THEMES[themeKey].dark.scaleBg)}` : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                                 >
                                     {THEMES[themeKey].name}
                                     {appState.theme === themeKey && (
@@ -357,11 +348,78 @@ const App: React.FC = () => {
                                     )}
                                 </button>
                             ))}
+
+                            <div className="px-4 py-2 border-t border-b border-slate-100 dark:border-slate-700 mt-2">
+                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Neck Customization</span>
+                            </div>
+                            
+                            {/* Fretboard Material */}
+                            <div className="px-4 py-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Fretboard Material</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(['vector', 'rosewood', 'maple', 'ebony'] as FretboardMaterial[]).map((mat) => (
+                                        <button 
+                                            key={mat}
+                                            onClick={() => setAppState(prev => ({ ...prev, fretboardMaterial: mat }))}
+                                            className={`px-2 py-1.5 text-[10px] font-black rounded border transition-all ${appState.fretboardMaterial === mat ? `${palette.light.scaleBg} ${palette.light.scaleText} border-transparent` : 'bg-slate-100 dark:bg-slate-700 text-slate-500 border-slate-200 dark:border-slate-600'}`}
+                                        >
+                                            {mat.toUpperCase()}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Inlays Toggle */}
+                            <div className="px-4 py-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-700">
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-900 dark:text-white">Enable Inlays</span>
+                                </div>
+                                <button 
+                                    onClick={() => setAppState(prev => ({ ...prev, inlaysEnabled: !prev.inlaysEnabled }))}
+                                    className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${appState.inlaysEnabled ? palette.light.scaleBg : 'bg-slate-200 dark:bg-slate-700'}`}
+                                >
+                                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${appState.inlaysEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </button>
+                            </div>
+
+                            {appState.inlaysEnabled && (
+                                <>
+                                    <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Inlay Style</label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {(['dots', 'blocks', 'diamond'] as InlayStyle[]).map((style) => (
+                                                <button 
+                                                    key={style}
+                                                    onClick={() => setAppState(prev => ({ ...prev, inlayStyle: style }))}
+                                                    className={`px-2 py-1 text-[9px] font-black rounded border transition-all ${appState.inlayStyle === style ? `${palette.light.scaleBg} ${palette.light.scaleText} border-transparent` : 'bg-slate-100 dark:bg-slate-700 text-slate-500 border-slate-200 dark:border-slate-600'}`}
+                                                >
+                                                    {style.replace('-', ' ').toUpperCase()}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Inlay Material</label>
+                                        <div className="flex gap-1.5">
+                                            {(['pearl', 'abalone', 'neon'] as InlayMaterial[]).map((mat) => (
+                                                <button 
+                                                    key={mat}
+                                                    onClick={() => setAppState(prev => ({ ...prev, inlayMaterial: mat }))}
+                                                    className={`px-2 py-1 text-[9px] font-black rounded border transition-all ${appState.inlayMaterial === mat ? `${palette.light.scaleBg} ${palette.light.scaleText} border-transparent` : 'bg-slate-100 dark:bg-slate-700 text-slate-500 border-slate-200 dark:border-slate-600'}`}
+                                                >
+                                                    {mat.toUpperCase()}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
                 <button 
-                    onClick={toggleTheme}
+                    onClick={toggleThemeMode}
+                    title="Toggle Dark Mode"
                     className={`p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:${getTextColor(palette.light.scaleBg)} dark:hover:${getTextColor(palette.dark.scaleBg)} transition-colors focus:outline-none focus:ring-2 ${getFocusRingColor(palette.light.scaleBg)} ${getFocusRingColor(palette.dark.scaleBg)}`}
                 >
                     {isDarkMode ? (
@@ -375,6 +433,52 @@ const App: React.FC = () => {
                     )}
                 </button>
             </div>
+
+            <div className="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
+
+            <div className="relative" ref={settingsMenuRef}>
+                <button 
+                    onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
+                    title="App Settings"
+                    className={`p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 ${getFocusRingColor(palette.light.scaleBg)} ${getFocusRingColor(palette.dark.scaleBg)} ${isSettingsMenuOpen ? `bg-slate-200 dark:bg-slate-700 ${getTextColor(palette.light.scaleBg)} ${getTextColor(palette.dark.scaleBg)}` : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'}`}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+                {isSettingsMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in duration-200">
+                        <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-700">
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Global Settings</span>
+                        </div>
+                        <div className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-900 dark:text-white">Left Handed Mode</span>
+                                <span className="text-[10px] text-slate-500">Reverse neck orientation</span>
+                            </div>
+                            <button 
+                                onClick={toggleLeftHanded}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${appState.isLeftHanded ? palette.light.scaleBg : 'bg-slate-200 dark:bg-slate-700'}`}
+                            >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${appState.isLeftHanded ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+                        <div className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-900 dark:text-white">Note Feedback</span>
+                                <span className="text-[10px] text-slate-500">Play note on click</span>
+                            </div>
+                            <button 
+                                onClick={() => setAppState(prev => ({ ...prev, enableNotePreview: !prev.enableNotePreview }))}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${appState.enableNotePreview ? palette.light.scaleBg : 'bg-slate-200 dark:bg-slate-700'}`}
+                            >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${appState.enableNotePreview ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
       </header>
 
@@ -386,14 +490,32 @@ const App: React.FC = () => {
               <div className="mb-8 text-center flex-shrink-0">
                   {!appState.selectedChord ? (
                     <>
-                        <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2 transition-colors duration-300">
+                        <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-4 transition-colors duration-300">
                             <span className={`${getTextColor(palette.light.rootBg)} ${getTextColor(palette.dark.rootBg)}`}>{appState.rootNote}</span> {appState.scale.name}
                         </h2>
-                        <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto transition-colors duration-300">
-                            Current notes: <span className={`${getTextColor(palette.light.scaleBg)} ${getTextColor(palette.dark.scaleBg)} font-mono text-sm`}>
-                                {getScaleNotes(appState.rootNote, appState.scale).join(' - ')}
-                            </span>
-                        </p>
+                        <div className="flex flex-wrap justify-center gap-2 max-w-4xl mx-auto">
+                            {getScaleNotes(appState.rootNote, appState.scale).map(note => {
+                              const isActive = appState.focusedNote === note;
+                              const isDimmed = appState.focusedNote !== null && !isActive;
+                              return (
+                                <button 
+                                  key={note}
+                                  onClick={() => toggleFocusedNote(note)}
+                                  className={`
+                                    px-4 py-2 rounded-xl text-lg font-black transition-all duration-300 transform
+                                    ${isActive 
+                                      ? `${palette.light.scaleBg} ${palette.dark.scaleBg} ${palette.light.scaleText} ${palette.dark.scaleText} scale-110 shadow-lg ring-2 ${palette.light.scaleRing} ${palette.dark.scaleRing}` 
+                                      : isDimmed
+                                        ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 opacity-40 grayscale'
+                                        : `bg-slate-100 dark:bg-slate-800 ${getTextColor(palette.light.scaleBg)} ${getTextColor(palette.dark.scaleBg)} hover:scale-105 active:scale-95 shadow-sm`
+                                    }
+                                  `}
+                                >
+                                  {note}
+                                </button>
+                              );
+                            })}
+                        </div>
                     </>
                   ) : (
                     <>
@@ -421,14 +543,23 @@ const App: React.FC = () => {
                     zoomLevel={appState.zoomLevel}
                     selectedChord={appState.selectedChord}
                     theme={appState.theme}
+                    isLeftHanded={appState.isLeftHanded}
                     onNoteClick={handleNoteClick}
+                    chordDisplayMode={appState.chordDisplayMode}
+                    focusedNote={appState.focusedNote}
+                    fretboardMaterial={appState.fretboardMaterial}
+                    inlaysEnabled={appState.inlaysEnabled}
+                    inlayStyle={appState.inlayStyle}
+                    inlayMaterial={appState.inlayMaterial}
                 />
               </div>
                <div className="mt-8 text-center flex-shrink-0">
-                   <p className="text-xs text-slate-400 dark:text-slate-600 uppercase tracking-widest transition-colors duration-300">
+                   <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors duration-300">
                        {appState.selectedChord 
                          ? 'Nut: Open • Mute (X) • Free (Bloom) • Frets: Pin/Unpin' 
-                         : 'Click a note to enter Chord Builder • Scroll to view'}
+                         : appState.focusedNote 
+                            ? `Focused on ${appState.focusedNote} • Click any header note to clear focus`
+                            : 'Click a note to enter Chord Builder • Click header notes to focus'}
                    </p>
                </div>
            </div>
@@ -451,6 +582,18 @@ const App: React.FC = () => {
                                     }
                                 `}
                             >
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    audioEngine.strumChord(appState.tuning, saved.chord.customVoicing || [], saved.chord.mutedStrings || []);
+                                  }}
+                                  className="p-1 rounded-md hover:bg-white/50 dark:hover:bg-white/10 text-slate-400 hover:text-amber-500 transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </button>
                                 <span className="font-bold text-sm whitespace-nowrap">{saved.label}</span>
                                 <span className="text-xs opacity-60 font-mono">fr.{saved.chord.rootFret}</span>
                                 <button 
@@ -482,9 +625,6 @@ const App: React.FC = () => {
                  </button>
               </div>
               <div className="p-6">
-                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                    Paste your Fret Visual JSON configuration below to restore your session.
-                 </p>
                  <textarea 
                     value={importText}
                     onChange={(e) => setImportText(e.target.value)}

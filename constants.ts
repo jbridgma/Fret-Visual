@@ -54,17 +54,17 @@ export const TUNINGS: Record<number, TuningDefinition[]> = {
     { name: 'DADGAD', notes: ['D', 'A', 'D', 'G', 'A', 'D'] },
   ],
   7: [
-    { name: 'Standard B', notes: ['B', 'E', 'A', 'D', 'G', 'B', 'E'] },
     { name: 'Drop A', notes: ['A', 'E', 'A', 'D', 'G', 'B', 'E'] },
+    { name: 'Standard B', notes: ['B', 'E', 'A', 'D', 'G', 'B', 'E'] },
     { name: 'Drop G', notes: ['G', 'D', 'G', 'C', 'F', 'A', 'D'] },
   ],
   8: [
-    { name: 'Standard F#', notes: ['F#', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
     { name: 'Drop E', notes: ['E', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
+    { name: 'Standard F#', notes: ['F#', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
   ],
   9: [
-    { name: 'Standard C#', notes: ['C#', 'F#', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
     { name: 'Drop B', notes: ['B', 'F#', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
+    { name: 'Standard C#', notes: ['C#', 'F#', 'B', 'E', 'A', 'D', 'G', 'B', 'E'] },
   ]
 };
 
