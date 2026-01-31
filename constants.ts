@@ -1,3 +1,4 @@
+
 import { ChordDefinition, NoteName, ScaleDefinition, TuningDefinition } from './types';
 
 export const ALL_NOTES: NoteName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -70,3 +71,4 @@ export const TUNINGS: Record<number, TuningDefinition[]> = {
 
 export const TOTAL_FRETS = 24;
 export const FRET_MARKERS = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24];
+
