@@ -34,6 +34,9 @@ const App: React.FC = () => {
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [infoTab, setInfoTab] = useState<'about' | 'donate' | 'support'>('about');
+
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   
@@ -43,7 +46,9 @@ const App: React.FC = () => {
   const themeMenuRef = useRef<HTMLDivElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const infoModalRef = useRef<HTMLDivElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   const palette = THEMES[appState.theme];
 
@@ -101,7 +106,14 @@ const App: React.FC = () => {
         setIsImportModalOpen(false);
         setImportError(null);
       }
+      if (infoModalRef.current && !infoModalRef.current.contains(event.target as Node)) {
+        setIsInfoModalOpen(false);
+      }
+      // Only close drawer if click is outside drawer AND outside nav bar
       if (drawerRef.current && !drawerRef.current.contains(event.target as Node)) {
+        if (navRef.current && navRef.current.contains(event.target as Node)) {
+           return;
+        }
         setMobileActiveDrawer(null);
       }
     };
@@ -444,6 +456,12 @@ const App: React.FC = () => {
                     </div>
                 )}
             </div>
+            
+            <button onClick={() => setIsInfoModalOpen(true)} title="About & Support" className={buttonStyle}>
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+               </svg>
+            </button>
         </div>
       </header>
 
@@ -513,7 +531,7 @@ const App: React.FC = () => {
       </main>
 
       {isMobile && (
-          <nav className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 flex items-center justify-around h-20 pb-safe z-[150]">
+          <nav ref={navRef} className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 flex items-center justify-around h-20 pb-safe z-[150]">
               {[
                   { id: 'scale', label: 'Theory', icon: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' },
                   { id: 'instrument', label: 'Tuning', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
@@ -528,11 +546,11 @@ const App: React.FC = () => {
       )}
 
       {isMobile && mobileActiveDrawer && (
-          <div className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" />
+          <div className="fixed inset-0 z-[155] bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" />
       )}
 
       {isMobile && mobileActiveDrawer && (
-          <div ref={drawerRef} className="fixed bottom-0 left-0 right-0 z-[145] bg-white dark:bg-slate-900 rounded-t-[32px] shadow-2xl border-t border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[75vh] animate-in slide-in-from-bottom duration-300">
+          <div ref={drawerRef} className="fixed bottom-0 left-0 right-0 z-[160] bg-white dark:bg-slate-900 rounded-t-[32px] shadow-2xl border-t border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[75vh] animate-in slide-in-from-bottom duration-300">
               <div className="flex-shrink-0 flex justify-center py-4">
                   <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full" />
               </div>
@@ -638,26 +656,26 @@ const App: React.FC = () => {
                                 ))}
                             </div>
                         </div>
-                        <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Extra Settings</label>
-                             <button onClick={() => setAppState(prev => ({ ...prev, enableNotePreview: !prev.enableNotePreview }))} className="w-full px-5 py-4 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-2xl transition-all">
-                                <span className="text-sm font-bold text-slate-900 dark:text-white">Note Feedback</span>
-                                <div className={`w-9 h-5 rounded-full relative transition-colors ${appState.enableNotePreview ? palette.light.scaleBg : 'bg-slate-200 dark:bg-slate-700'}`}>
-                                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${appState.enableNotePreview ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                                </div>
-                             </button>
-                             <button onClick={() => setAppState(prev => ({ ...prev, inlaysEnabled: !prev.inlaysEnabled }))} className="w-full px-5 py-4 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 rounded-2xl transition-all">
-                                <span className="text-sm font-bold text-slate-900 dark:text-white">Show Inlays</span>
-                                <div className={`w-9 h-5 rounded-full relative transition-colors ${appState.inlaysEnabled ? palette.light.scaleBg : 'bg-slate-200 dark:bg-slate-700'}`}>
-                                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${appState.inlaysEnabled ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                                </div>
-                             </button>
-                        </div>
                     </div>
                 )}
 
                 {mobileActiveDrawer === 'riff' && (
                     <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+                             <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs active:scale-95 transition-all hover:bg-slate-200 dark:hover:bg-slate-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                Import
+                             </button>
+                             <button onClick={handleExport} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs active:scale-95 transition-all hover:bg-slate-200 dark:hover:bg-slate-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Export
+                             </button>
+                        </div>
+                        
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Your Riff Strip</label>
                         {appState.savedChords.length === 0 ? (
                             <div className="py-20 text-center flex flex-col items-center justify-center">
@@ -700,6 +718,98 @@ const App: React.FC = () => {
               <div className="px-6 py-5 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
                  <button onClick={() => setIsImportModalOpen(false)} className="px-5 py-2 text-sm font-bold text-slate-600">Cancel</button>
                  <button onClick={handleImport} className={`px-8 py-2 rounded-2xl text-sm font-black shadow-lg transition-all ${palette.light.scaleBg} ${palette.dark.scaleBg} ${palette.light.scaleText} ${palette.dark.scaleText}`}>Restore Configuration</button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {isInfoModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+           <div ref={infoModalRef} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
+                 <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Fret Visual</h3>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500 uppercase">Beta</span>
+                 </div>
+                 <button onClick={() => setIsInfoModalOpen(false)} className="text-slate-400 hover:text-slate-600"><svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1">
+                 <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6 flex-shrink-0">
+                    <button onClick={() => setInfoTab('about')} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${infoTab === 'about' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>ABOUT</button>
+                    <button onClick={() => setInfoTab('donate')} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${infoTab === 'donate' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>DONATE</button>
+                    <button onClick={() => setInfoTab('support')} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${infoTab === 'support' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>SUPPORT</button>
+                 </div>
+                 
+                 {infoTab === 'about' && (
+                     <div className="space-y-6 animate-in slide-in-from-left-4 fade-in duration-300">
+                         <div>
+                             <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">Built for Exploration</h4>
+                             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                                 Fret Visual brings together the tools needed for writing music on guitar-family instruments into a single, cohesive workspace. It is designed to help you visualize context, discover new voicings, and explore the neck without switching between different reference tools.
+                             </p>
+                         </div>
+                         <div>
+                             <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">The Engine</h4>
+                             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                                 Unlike static chord dictionaries, the <strong>Geometric Voicing Engine</strong> calculates playable shapes in real-time based on your specific tuning and instrument configuration. It prioritizes ergonomic reach, allowing it to support anything from a standard 6-string guitar to a 9-string extended range instrument.
+                             </p>
+                         </div>
+                         <div className="pt-4">
+                             <a href="https://github.com/jbridgma/Fret-Visual" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-sm hover:opacity-90 transition-opacity">
+                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd"></path></svg>
+                                 View Source on GitHub
+                             </a>
+                         </div>
+                     </div>
+                 )}
+
+                 {infoTab === 'donate' && (
+                     <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+                         <div>
+                             <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-3">Support the Project</h4>
+                             <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-50">
+                                 <iframe 
+                                    id='kofiframe' 
+                                    src='https://ko-fi.com/fretvisual/?hidefeed=true&widget=true&embed=true&preview=true' 
+                                    style={{ border: 'none', width: '100%', padding: '4px', background: '#f9f9f9' }} 
+                                    height='500' 
+                                    title='fretvisual'
+                                 ></iframe>
+                             </div>
+                             <p className="mt-3 text-xs text-center text-slate-400">
+                                 Fret Visual is free, ad-free, and respects your privacy.
+                             </p>
+                         </div>
+                     </div>
+                 )}
+
+                 {infoTab === 'support' && (
+                     <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+                         <div>
+                             <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-3">Feedback & Contact</h4>
+                             <div className="flex flex-col gap-3">
+                                 <a href="mailto:support@fretvisual.org" className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
+                                     <div className={`p-2 rounded-lg ${palette.light.scaleBg} ${palette.dark.scaleBg} ${palette.light.scaleText} ${palette.dark.scaleText}`}>
+                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                     </div>
+                                     <div className="flex flex-col">
+                                         <span className="text-sm font-bold text-slate-900 dark:text-white">Email Support</span>
+                                         <span className="text-xs text-slate-500 dark:text-slate-400">support@fretvisual.org</span>
+                                     </div>
+                                 </a>
+                                 <a href="https://github.com/jbridgma/Fret-Visual/issues" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
+                                     <div className="p-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                                     </div>
+                                     <div className="flex flex-col">
+                                         <span className="text-sm font-bold text-slate-900 dark:text-white">Report a Bug</span>
+                                         <span className="text-xs text-slate-500 dark:text-slate-400">Open an issue on GitHub</span>
+                                     </div>
+                                 </a>
+                             </div>
+                         </div>
+                     </div>
+                 )}
               </div>
            </div>
         </div>
