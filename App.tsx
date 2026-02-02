@@ -5,6 +5,7 @@ import { CHORD_QUALITIES, SCALES, TUNINGS, ALL_NOTES } from './constants';
 import { getScaleNotes, suggestChordQuality, getChordNotes, getNoteOnFret, generateSmartVoicings, identifyChord } from './utils/musicTheory';
 import { THEMES } from './themeConfig';
 import { audioEngine } from './utils/audioEngine';
+import { trackPageView, trackNoteInteraction } from './utils/analytics';
 import Controls from './components/Controls';
 import Fretboard from './components/Fretboard';
 
@@ -94,6 +95,22 @@ const App: React.FC = () => {
     }
   }, [appState.theme, isDarkMode]);
 
+  // Virtual Page Tracking Observer
+  useEffect(() => {
+    if (appState.selectedChord) {
+      trackPageView('Chord Explorer');
+    } else if (isMobile && mobileActiveDrawer) {
+      const drawerNames: Record<string, string> = {
+        'scale': 'Theory Settings',
+        'instrument': 'Instrument Settings',
+        'riff': 'Riff Strip'
+      };
+      trackPageView(drawerNames[mobileActiveDrawer] || 'Menu');
+    } else {
+      trackPageView('Home');
+    }
+  }, [!!appState.selectedChord, mobileActiveDrawer, isMobile]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (themeMenuRef.current && !themeMenuRef.current.contains(event.target as Node)) {
@@ -163,6 +180,16 @@ const App: React.FC = () => {
   };
 
   const handleNoteClick = (note: NoteName, stringIndex: number, fretIndex: number) => {
+    // Track Interaction
+    trackNoteInteraction({
+      note_name: note,
+      fret_number: fretIndex,
+      string_index: stringIndex,
+      tuning_context: appState.tuning.join(','),
+      string_count: appState.numStrings,
+      mode: appState.selectedChord ? 'explorer' : 'theory'
+    });
+
     let shouldPlayAudio = false;
     if (appState.selectedChord) {
         const chordNotes = getChordNotes(appState.selectedChord.rootNote, appState.selectedChord.quality);
@@ -518,6 +545,39 @@ const App: React.FC = () => {
            </div>
         </div>
 
+        {!isMobile && appState.savedChords.length > 0 && (
+            <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-t border-slate-200 dark:border-slate-800 p-4 transition-colors duration-300 flex-shrink-0 z-50">
+               <div className="max-w-7xl mx-auto flex items-center space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+                  {appState.savedChords.map(saved => (
+                      <div 
+                          key={saved.id} 
+                          onClick={() => handleSavedChordClick(saved)}
+                          className={`flex-shrink-0 min-w-[180px] p-3 rounded-2xl border transition-all cursor-pointer group flex items-center justify-between ${appState.selectedChord?.rootNote === saved.chord.rootNote && appState.selectedChord?.quality.name === saved.chord.quality.name ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-500 shadow-md' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-amber-400 shadow-sm'}`}
+                      >
+                          <div className="flex flex-col">
+                              <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{saved.label}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">Fret {saved.chord.rootFret}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button 
+                                onClick={(e) => { e.stopPropagation(); audioEngine.strumChord(appState.tuning, saved.chord.customVoicing || [], saved.chord.mutedStrings || []); }}
+                                className="p-1.5 rounded-lg bg-amber-500 text-white shadow hover:scale-110 active:scale-90 transition-all"
+                             >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /></svg>
+                             </button>
+                             <button 
+                                onClick={(e) => deleteSavedChord(e, saved.id)}
+                                className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-rose-500 hover:text-white transition-all"
+                             >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                             </button>
+                          </div>
+                      </div>
+                  ))}
+               </div>
+            </div>
+        )}
+
         {isMobile && appState.selectedChord && (
             <button 
                 onClick={handleStrum}
@@ -752,6 +812,12 @@ const App: React.FC = () => {
                              <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">The Engine</h4>
                              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                                  Unlike static chord dictionaries, the <strong>Geometric Voicing Engine</strong> calculates playable shapes in real-time based on your specific tuning and instrument configuration. It prioritizes ergonomic reach, allowing it to support anything from a standard 6-string guitar to a 9-string extended range instrument.
+                             </p>
+                         </div>
+                         <div>
+                             <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">Privacy & Analytics</h4>
+                             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                                 This application uses Google Analytics to anonymously track usage patterns (like note frequency and common tunings) to help improve the layout and features of the visualizer. No personally identifiable information is collected. Our source code is public on GitHub for full transparency.
                              </p>
                          </div>
                          <div className="pt-4">
