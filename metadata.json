@@ -1,5 +1,5 @@
 {
   "name": "Fret Visual",
-  "description": "An interactive, high-fidelity guitar fretboard visualizer. Customize string counts, tunings, and scales to visualize notes across the neck.",
+  "description": "Professional-grade guitar fretboard visualizer and chord explorer. Supports 4-9 strings, custom tunings, and geometric voicing identification for guitar, bass, and extended range instruments.",
   "requestFramePermissions": []
 }

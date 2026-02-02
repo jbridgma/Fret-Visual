@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppState, NoteName, ThemeName, SavedChord, ZoomLevel, ScaleDefinition, FretboardMaterial, InlayStyle, InlayMaterial, ChordDisplayMode } from './types';
 import { CHORD_QUALITIES, SCALES, TUNINGS, ALL_NOTES } from './constants';
@@ -83,6 +82,18 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // Dynamic Document Title for SEO
+  useEffect(() => {
+    let title = "Fret Visual - Interactive Guitar Fretboard & Theory Tool";
+    if (appState.selectedChord) {
+      const chordName = identifiedChordName || "Chord Explorer";
+      title = `${chordName} - Fret Visual`;
+    } else {
+      title = `${appState.rootNote} ${appState.scale.name} - Fret Visual`;
+    }
+    document.title = title;
+  }, [appState.rootNote, appState.scale.name, identifiedChordName, !!appState.selectedChord]);
 
   useEffect(() => {
     const currentPalette = isDarkMode ? palette.dark : palette.light;
@@ -497,7 +508,7 @@ const App: React.FC = () => {
         
         <div className="flex-1 overflow-hidden relative flex flex-col justify-center transition-colors duration-300">
            <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-200 via-transparent to-transparent dark:from-white/5 dark:via-transparent dark:to-transparent opacity-50 pointer-events-none`}></div>
-           <div className="relative z-10 w-full px-2 md:px-4 flex flex-col h-full justify-center">
+           <div className="relative z-10 w-full px-2 md:px-4 flex flex-col min-h-0 justify-center">
               {!isMobile && (
                   <div className="mb-4 md:mb-8 text-center flex-shrink-0">
                       {!appState.selectedChord ? (
@@ -785,11 +796,11 @@ const App: React.FC = () => {
 
       {isInfoModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
-           <div ref={infoModalRef} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+           <div ref={infoModalRef} className="bg-white dark:bg-slate-900 w-full max-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
                  <div className="flex items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Fret Visual</h3>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500 uppercase">Beta</span>
+                    <span className="px-2 py-0.5 rounded-full bg-teal-500/10 text-[10px] font-black text-teal-600 dark:text-teal-400 uppercase">v1.0.0 stable</span>
                  </div>
                  <button onClick={() => setIsInfoModalOpen(false)} className="text-slate-400 hover:text-slate-600"><svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button>
               </div>
@@ -856,7 +867,7 @@ const App: React.FC = () => {
                              <div className="flex flex-col gap-3">
                                  <a href="mailto:support@fretvisual.org" className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
                                      <div className={`p-2 rounded-lg ${palette.light.scaleBg} ${palette.dark.scaleBg} ${palette.light.scaleText} ${palette.dark.scaleText}`}>
-                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v10a2 2 0 002 2z" /></svg>
                                      </div>
                                      <div className="flex flex-col">
                                          <span className="text-sm font-bold text-slate-900 dark:text-white">Email Support</span>
